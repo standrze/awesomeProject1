@@ -1,36 +1,64 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"sync"
-	"time"
+	"github.com/dghubble/go-twitter/twitter"
+	"github.com/dghubble/oauth1"
+	"log"
+	"os"
 )
+
+const (
+	// Create an app from https://apps.twitter.com/, create an access token
+	// and copy-paste the values from there.
+	ConsumerKey       = ""
+	ConsumerSecret    = ""
+	AccessToken       = ""
+	AccessTokenSecret = ""
+)
+
+func ReturnList(count int, client *twitter.Client, f *os.File) int {
+	friends, _, err := client.Friends.List(&twitter.FriendListParams{
+		UserID:              0,
+		ScreenName:          "PeteButtigieg",
+		Cursor:              0,
+		Count:               count,
+		SkipStatus:          nil,
+		IncludeUserEntities: nil,
+	})
+	if err != nil {
+		log.Panic(err)
+		return count
+	}
+	for _, friend := range friends.Users {
+		b, err := json.Marshal(friend)
+		if err != nil {
+			fmt.Println(err)
+		}
+		f.WriteString(string(b) + "\n")
+	}
+
+	fmt.Println(int(friends.NextCursor))
+	return ReturnList(int(friends.NextCursor), client, f)
+}
 
 func main() {
 
-	numbers := [10]string{"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+	config := oauth1.NewConfig(ConsumerKey, ConsumerSecret)
+	token := oauth1.NewToken(AccessToken, AccessTokenSecret)
 
-	channel := make(chan string, 10)
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitter.NewClient(httpClient)
 
-	waiter := &sync.WaitGroup{}
-	waiter.Add(10)
-
-	for i := 0; i < 10; i++ {
-		go func(y int) {
-			defer waiter.Done()
-
-			for a := range channel {
-				fmt.Println(y, a)
-			}
-			time.Sleep(5 * time.Second)
-		}(i)
+	f, err := os.Create("PeteButtigieg2_following.txt")
+	if err != nil {
+		log.Panic(err)
 	}
 
-	for _, i := range numbers {
-		channel <- i
-	}
-	close(channel)
-
-	waiter.Wait()
+	defer f.Close()
+	i := ReturnList(0, client, f)
+	fmt.Println(i)
 
 }
+
