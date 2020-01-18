@@ -18,18 +18,18 @@ const (
 	AccessTokenSecret = ""
 )
 
-func ReturnList(count int, client *twitter.Client, f *os.File) int {
+func ReturnList(count int64, client *twitter.Client, f *os.File) int {
 	friends, _, err := client.Friends.List(&twitter.FriendListParams{
 		UserID:              0,
 		ScreenName:          "PeteButtigieg",
-		Cursor:              0,
-		Count:               count,
+		Cursor:              count,
+		Count:               100,
 		SkipStatus:          nil,
 		IncludeUserEntities: nil,
 	})
 	if err != nil {
 		log.Panic(err)
-		return count
+		return int(count)
 	}
 	for _, friend := range friends.Users {
 		b, err := json.Marshal(friend)
@@ -40,7 +40,8 @@ func ReturnList(count int, client *twitter.Client, f *os.File) int {
 	}
 
 	fmt.Println(int(friends.NextCursor))
-	return ReturnList(int(friends.NextCursor), client, f)
+
+	return ReturnList(friends.NextCursor, client, f)
 }
 
 func main() {
@@ -51,7 +52,7 @@ func main() {
 	httpClient := config.Client(oauth1.NoContext, token)
 	client := twitter.NewClient(httpClient)
 
-	f, err := os.Create("PeteButtigieg2_following.txt")
+	f, err := os.Create("PeteButtigieg_following.txt")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -61,4 +62,3 @@ func main() {
 	fmt.Println(i)
 
 }
-
